@@ -24,6 +24,7 @@ jobs:
       HAS_DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION != '' }}
       HAS_SPARKLE_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_PUBLIC_ED_KEY != '' }}
       HAS_SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY != '' }}
+      GITHUB_TOKEN: ${{ github.token }}
 
     steps:
       - name: Checkout
@@ -63,6 +64,16 @@ jobs:
             printf '\nUse CI artifacts for unsigned test builds, or add these repository secrets before publishing a release.\n' >&2
             exit 1
           fi
+
+      - name: Validate scripts
+        run: |
+          bash -n mac/package_app.sh
+          bash -n scripts/build_portable_python.sh
+          bash -n scripts/create_dmg.sh
+          python3 -m py_compile scripts/write_appcast.py
+          PYTHON_STANDALONE_ASSET_URL=https://example.com/python.tar.gz \
+            PYTHON_STANDALONE_RESOLVE_ONLY=1 \
+            scripts/build_portable_python.sh
 
       - name: Build portable Python runtime
         run: scripts/build_portable_python.sh
