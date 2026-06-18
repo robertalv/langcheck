@@ -1,0 +1,12 @@
+# LangCheck runtime dependencies
+spacy==3.8.14
+customtkinter==5.2.2
+wordfreq==3.1.1
+tkinterdnd2==0.5.0          # optional drag-and-drop (no-op if native lib won't load)
+click>=8.1                  # required by spaCy's CLI / model download
+
+# spaCy English model (installed as a pip package)
+en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl
+
+# --- build-only (not needed to run from source) ---
+# pyinstaller>=6.0

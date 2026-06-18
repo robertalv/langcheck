@@ -1,0 +1,88 @@
+================================================================
+LangCheck — stylometric report
+================================================================
+words: 3,109   sentences: 167   chars: 15,273
+source: COE.txt
+
+▸ “Rather” as a degree adverb
+   5 degree use(s) of “rather”  ·  1.61 per 1,000 words
+     · The man who told the police that my car was brown was a negro about 40-45 »rather« shabbily dressed.
+     · I have grown »rather« angry with the police for their telling lies about me.
+     · By the way it could be »rather« messy if you try to bluff me.
+     · This is the Zodiac speaking I am »rather« unhappy because you people will not wear some nice ⌖ buttons.
+     · So I now have a little list, starting with the woman and her baby that I gave a »rather« interesting ride for a couple hours one evening a few months back that ended in my burning her car where I found them.
+   (Counts only intensifier uses like “rather angry”; ignores “rather than” and “would rather”.)
+
+▸ “In” before a gerund
+   2 of 72 gerunds follow “in”  ·  2.8%
+     · I HOPE YOU ARE HAVING LOTS OF FUN »IN «TRYING TO CATCH ME THAT WASN'T ME ON THE TV SHOW WHICH BRINGS UP A POINT
+     · But there is more glory »in «killing a cop than a cid because a cop can shoot back.
+   (e.g. “…fun in trying to catch me.”)
+
+▸ Contraction rate
+   8.7% contracted  ·  13 contracted vs 137 expanded form(s)
+     · Most common contractions: won't (4), don't (4), i'm (2), wouldn't (1), doesn't (1), wasn't (1)
+   (Rate = contracted ÷ (contracted + expandable forms). A writer who avoids contractions scores low.)
+
+▸ “Will” vs “shall”
+   shall 21 · will 27  ·  43.8% of modals are “shall”
+   (High “shall” share is a strong, old-fashioned/formal stylistic marker.)
+
+▸ Possessive determiner + gerund
+   3 possessive+gerund construction(s)  ·  0.96 per 1,000 words
+     · In answer to »your asking« for more details about the good times I have had in Vallejo, I shall be very happy to supply even more material.
+     · To prove that I am the Zodiac, Ask the Vallejo cop about my electric gun sight which I used to start »my collecting« of slaves.
+     · So I now have a little list, starting with the woman and her baby that I gave a rather interesting ride for a couple hours one evening a few months back that ended in »my burning« her car where I found them.
+   (e.g. “…your asking for more details.” A formal construction (possessive before a gerund).)
+
+▸ Dropped / missing article (heuristic)
+   40 candidate(s) of an article-less singular noun  ·  12.87 per 1,000 words
+     · To prove this I shall state some facts which only I and the police know Christmass 1 Brand name of ammo Super X 2 10 shots fired 3 »Boy« was on back feet to car 4 Girl was lying on right side feet to west 4th of July 1
+     · To prove this I shall state some facts which only I and the police know Christmass 1 Brand name of ammo Super X 2 10 shots fired 3 Boy was on back feet to car 4 Girl was lying on right side feet to west »4th« of July 1
+     · »Boy« was also shot in the knee 3 Brand name of ammo was Western Here is a cipher or that is part of one.
+     · Boy was also shot in the knee 3 Brand name of »ammo« was Western Here is a cipher or that is part of one.
+     · Boy was also shot in the knee 3 Brand name of ammo was Western Here is a cipher or that is »part« of one.
+     · 3 Brand name of »ammo« was western Over Here is part of a cipher the other 2 parts of this cipher are being mailed to the editors at the Vallejo times and SF Examiner.
+     · 3 Brand name of ammo was western Over Here is »part« of a cipher the other 2 parts of this cipher are being mailed to the editors at the Vallejo times and SF Examiner.
+     · If you do not print this cipher by the afternoon of Fry. »1st« of Aug 69, I will go on a kill ram-Page Fry. night.
+     · Christmass 1 brand name of ammo = Super X 2 10 shots fired 3 »Boy« was on his back with feet to car 4 Girl was lying on right side feet to west 4th of July 1 girl was wearing patterned pants 2 boy was also shot in the knee 3 ammo was made by Western Here is a cipher or that is part of one.
+     · Christmass 1 brand name of ammo = Super X 2 10 shots fired 3 Boy was on his back with feet to car 4 Girl was lying on right side feet to west »4th« of July 1 girl was wearing patterned pants 2 boy was also shot in the knee 3 ammo was made by Western Here is a cipher or that is part of one.
+   (HEURISTIC — flags singular count nouns in object/subject position with no the/a/an/possessive (e.g. “…back to developer”). Review each; mass nouns, generics and idioms are filtered but false positives remain.)
+
+▸ Complementizer inclusion vs deletion
+   relative which/that kept 53% (17/32) · “that”-clause kept 21% (6/28)
+     · · zero “that”: (Chronicle Z1-2 7/31/1969) Dear Editor This is the murderer of the 2 teenagers last Christmass at Lake Herman and the girl on the 4th of July near the golf course in Vallejo To prove I killed them I shall state some facts which only I and the police know.
+     · · zero relative: (Chronicle Z1-2 7/31/1969) Dear Editor This is the murderer of the 2 teenagers last Christmass at Lake Herman and the girl on the 4th of July near the golf course in Vallejo To prove I killed them I shall state some facts which only I and the police know.
+     · · zero “that”: They did not openly state this, but implied this by saying it was a well lit night and I could see the silhouettes on the horizon.
+     · · zero relative: All I had to do with spray them as if it was a water hose; there was no need to use the gun sights.
+     · · zero “that”: I am the murderer of the taxi driver over by Washington St and Maple St last night, to prove this here is a blood stained piece of his shirt.
+     · · zero “that”: School children make nice targets, I think I shall wipe out a school bus some morning.
+     · · zero “that”: School children make nice targets, I think I shall wipe out a school bus some morning.
+     · · zero “that”: This is the Zodiac speaking I thought you would need a good laugh before you hear the bad news you won't get the news for a while
+   (Retention = how often the writer KEEPS which/that. Low retention means a tendency to drop it (“facts Ø I know”, “prove Ø I am”). Parser-based, approximate.)
+
+▸ “Is this” + cataphoric prompt
+   2 cataphoric “is this …” of 2 total “is this”
+     · …s. The one thing I ask of you is this, please help me.
+     · …that I'm writing to the Times is this, They don't bury me on the back pages like some of the others.
+   (Catches “…the one thing I ask of you is this, please help me.” (a colon/comma then a directive).)
+
+▸ Top-3 degree adverbs
+   top 3 = rather (5), very (4), so (3)  ·  63% of all degree-adverb use
+   (Degree adverbs = intensifiers modifying an adjective/adverb (very, quite, rather…).)
+
+▸ Phrase / word rarity (COCA-style)
+   “the system checks out from one end to t…” → Zipf 4.31 (common)
+     · “the system checks out from one end to the other”  →  Zipf 4.31 (common)
+     ·     checks: Zipf 4.31 (common)
+     ·     system: Zipf 5.56 (very common)
+     ·     end: Zipf 5.68 (very common)
+     ·     other: Zipf 6.16 (very common)
+     ·     out: Zipf 6.38 (very common)
+     ·     one: Zipf 6.47 (very common)
+     ·     from: Zipf 6.63 (very common)
+     ·     to: Zipf 7.43 (very common)
+     ·     the: Zipf 7.73 (very common)
+     ·     the: Zipf 7.73 (very common)
+   (Zipf scale: ~7 = extremely common (‘the’), ~4 = ordinary, ≤3 = rare, ≤2 = very rare. Approximates COCA frequency using the aggregated `wordfreq` corpora.)
+

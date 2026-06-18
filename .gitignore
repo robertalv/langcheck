@@ -1,0 +1,12 @@
+venv/
+build/
+dist/
+__pycache__/
+*.pyc
+.DS_Store
+
+# Swift / Xcode build output
+mac/LangCheck/.build/
+mac/dist/
+*.xcodeproj
+.swiftpm/

@@ -1,0 +1,177 @@
+name: macOS Release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version, for example 1.0.1"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build DMG
+    runs-on: macos-14
+    env:
+      APPLE_CERTIFICATE_BASE64_PRESENT: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+      APPLE_ID_PRESENT: ${{ secrets.APPLE_ID }}
+      APPLE_APP_SPECIFIC_PASSWORD_PRESENT: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+      APPLE_TEAM_ID_PRESENT: ${{ secrets.APPLE_TEAM_ID }}
+      DEVELOPER_ID_APPLICATION_PRESENT: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+      SPARKLE_PRIVATE_ED_KEY_PRESENT: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VERSION="${{ inputs.version }}"
+          else
+            VERSION="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Build portable Python runtime
+        run: scripts/build_portable_python.sh
+
+      - name: Import Developer ID certificate
+        if: ${{ env.APPLE_CERTIFICATE_BASE64_PRESENT != '' }}
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+      - name: Build app bundle
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+          APP_BUILD: ${{ steps.version.outputs.build }}
+          LANGCHECK_UPDATE_FEED_URL: https://github.com/${{ github.repository }}/releases/latest/download/appcast.xml
+          PYENGINE_PYTHON_DIR: ${{ github.workspace }}/mac/build/python-runtime
+          SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+          SPARKLE_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_PUBLIC_ED_KEY }}
+        run: mac/package_app.sh
+
+      - name: Verify app bundle
+        run: mac/dist/LangCheck.app/Contents/MacOS/LangCheck --selftest
+
+      - name: Notarize app bundle
+        if: ${{ env.APPLE_ID_PRESENT != '' && env.APPLE_APP_SPECIFIC_PASSWORD_PRESENT != '' && env.APPLE_TEAM_ID_PRESENT != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          ditto -c -k --keepParent mac/dist/LangCheck.app "$RUNNER_TEMP/LangCheck.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/LangCheck.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple mac/dist/LangCheck.app
+
+      - name: Create DMG
+        env:
+          APP_VERSION: ${{ steps.version.outputs.version }}
+        run: scripts/create_dmg.sh
+
+      - name: Sign DMG
+        if: ${{ env.DEVELOPER_ID_APPLICATION_PRESENT != '' }}
+        env:
+          SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: |
+          codesign --force --timestamp --sign "$SIGN_IDENTITY" mac/dist/*.dmg
+          codesign --verify --verbose=2 mac/dist/*.dmg
+
+      - name: Notarize DMG
+        if: ${{ env.APPLE_ID_PRESENT != '' && env.APPLE_APP_SPECIFIC_PASSWORD_PRESENT != '' && env.APPLE_TEAM_ID_PRESENT != '' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          DMG="$(ls mac/dist/LangCheck-*.dmg | head -n 1)"
+          xcrun notarytool submit "$DMG" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$DMG"
+
+      - name: Sign update for Sparkle
+        id: sparkle
+        if: ${{ env.SPARKLE_PRIVATE_ED_KEY_PRESENT != '' }}
+        env:
+          SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
+        shell: bash
+        run: |
+          DMG="$(ls mac/dist/LangCheck-*.dmg | head -n 1)"
+          SIGN_UPDATE="$(find mac/LangCheck/.build "$HOME/Library/Caches/org.swift.swiftpm" -path '*/sign_update' -type f -perm +111 -print -quit 2>/dev/null || true)"
+          if [[ -z "$SIGN_UPDATE" ]]; then
+            echo "Could not find Sparkle sign_update tool." >&2
+            exit 1
+          fi
+          OUTPUT="$(printf '%s' "$SPARKLE_PRIVATE_ED_KEY" | "$SIGN_UPDATE" --ed-key-file - "$DMG")"
+          echo "$OUTPUT"
+          SIG="$(echo "$OUTPUT" | sed -n 's/.*sparkle:edSignature="\([^"]*\)".*/\1/p')"
+          if [[ -z "$SIG" ]]; then
+            echo "Could not parse Sparkle edSignature." >&2
+            exit 1
+          fi
+          echo "signature=$SIG" >> "$GITHUB_OUTPUT"
+
+      - name: Write appcast
+        shell: bash
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          BUILD="${{ steps.version.outputs.build }}"
+          DMG="$(ls mac/dist/LangCheck-*.dmg | head -n 1)"
+          DMG_NAME="$(basename "$DMG")"
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v$VERSION/$DMG_NAME"
+          scripts/write_appcast.py \
+            --version "$VERSION" \
+            --build "$BUILD" \
+            --dmg "$DMG" \
+            --download-url "$DOWNLOAD_URL" \
+            --ed-signature "${{ steps.sparkle.outputs.signature }}" \
+            --output mac/dist/appcast.xml
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LangCheck-${{ steps.version.outputs.version }}-macOS
+          path: |
+            mac/dist/LangCheck-*.dmg
+            mac/dist/appcast.xml
+
+      - name: Publish GitHub release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            mac/dist/LangCheck-*.dmg
+            mac/dist/appcast.xml
+          generate_release_notes: true
