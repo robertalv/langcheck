@@ -93,13 +93,14 @@ struct ContentView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             sidebar
-                .navigationSplitViewColumnWidth(min: 210, ideal: 245, max: 320)
+                .navigationSplitViewColumnWidth(min: 245, ideal: 245, max: 245)
         } detail: {
             mainShell
         }
         .frame(minWidth: 1120, minHeight: 720)
         .background(Color(nsColor: .windowBackgroundColor))
-        .navigationSplitViewStyle(.balanced)
+        .navigationSplitViewStyle(.prominentDetail)
+        .animation(.easeInOut(duration: 0.18), value: columnVisibility)
         .toolbar {
             ToolbarItemGroup(placement: .navigation) {
                 Button { goBack() } label: {

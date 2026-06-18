@@ -221,3 +221,14 @@ jobs:
           files: |
             mac/dist/LangCheck-*.dmg
             mac/dist/appcast.xml
+
+      - name: Keep CI release out of public latest channel
+        if: github.event_name != 'pull_request' && steps.gatekeeper.outputs.installable == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          RELEASE_ID="$(gh api "repos/${{ github.repository }}/releases/tags/${{ steps.version.outputs.tag }}" --jq .id)"
+          gh api -X PATCH "repos/${{ github.repository }}/releases/$RELEASE_ID" \
+            -F prerelease=true \
+            -F make_latest=false
