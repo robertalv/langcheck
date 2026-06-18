@@ -15,7 +15,7 @@ esac
 rm -rf "$PY_DIR"
 mkdir -p "$PY_DIR" "$BUILD_DIR"
 
-echo "▸ Finding latest python-build-standalone for macOS $ASSET_ARCH…"
+echo "▸ Finding latest python-build-standalone for macOS ${ASSET_ARCH}…"
 ASSET_URL="$(
   python3 - "$PYTHON_VERSION_PREFIX" "$ASSET_ARCH" <<'PY'
 import json
