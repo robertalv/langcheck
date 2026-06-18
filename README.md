@@ -101,10 +101,13 @@ Sparkle.
 `.github/workflows/ci.yml` runs on pushes, pull requests, and manual dispatch.
 It validates the scripts, builds the Swift app, builds a portable Python
 runtime, packages `LangCheck.app`, runs `--selftest`, creates a DMG, and uploads
-the DMG as a GitHub Actions artifact. On pushes to `main`/`master` and manual
-CI runs, it also publishes a numbered GitHub Release like `v1.0.<run_number>`
-with the DMG and `appcast.xml`. Pull requests stay validation-only and do not
-publish releases.
+the DMG as a GitHub Actions artifact. CI artifacts are unsigned test builds and
+are not intended for public installation.
+
+Public releases are produced only by `.github/workflows/macos-release.yml`.
+That workflow requires Developer ID signing, Apple notarization, and Sparkle
+update signing secrets before it will publish a GitHub Release. This prevents
+shipping DMGs that macOS reports as damaged or unsafe.
 
 ### One-time release setup
 
@@ -130,9 +133,9 @@ publish releases.
    | `APPLE_APP_SPECIFIC_PASSWORD` | App-specific password for notarization |
    | `APPLE_TEAM_ID` | Apple Developer Team ID |
 
-The Apple secrets are required for public distribution without Gatekeeper
-warnings. Without them, GitHub Actions still creates a test DMG artifact, but it
-will not be notarized for general users.
+The Apple and Sparkle secrets are required for public distribution without
+Gatekeeper warnings. Without them, CI still creates a test DMG artifact, but the
+release workflow will refuse to publish a public release.
 
 ### Publish a release
 

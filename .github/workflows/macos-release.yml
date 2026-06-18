@@ -22,6 +22,7 @@ jobs:
       HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_BASE64 != '' }}
       HAS_APPLE_NOTARY: ${{ secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
       HAS_DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION != '' }}
+      HAS_SPARKLE_PUBLIC_ED_KEY: ${{ secrets.SPARKLE_PUBLIC_ED_KEY != '' }}
       HAS_SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY != '' }}
 
     steps:
@@ -44,6 +45,24 @@ jobs:
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      - name: Validate public release signing setup
+        shell: bash
+        run: |
+          missing=()
+          [[ "${HAS_APPLE_CERTIFICATE}" == "true" ]] || missing+=("APPLE_CERTIFICATE_BASE64")
+          [[ "${HAS_APPLE_NOTARY}" == "true" ]] || missing+=("APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD / APPLE_TEAM_ID")
+          [[ "${HAS_DEVELOPER_ID_APPLICATION}" == "true" ]] || missing+=("DEVELOPER_ID_APPLICATION")
+          [[ "${HAS_SPARKLE_PUBLIC_ED_KEY}" == "true" ]] || missing+=("SPARKLE_PUBLIC_ED_KEY")
+          [[ "${HAS_SPARKLE_PRIVATE_ED_KEY}" == "true" ]] || missing+=("SPARKLE_PRIVATE_ED_KEY")
+
+          if (( ${#missing[@]} > 0 )); then
+            printf 'This workflow publishes public installable releases, so it requires signing/notarization secrets.\n' >&2
+            printf 'Missing:\n' >&2
+            printf '  - %s\n' "${missing[@]}" >&2
+            printf '\nUse CI artifacts for unsigned test builds, or add these repository secrets before publishing a release.\n' >&2
+            exit 1
+          fi
 
       - name: Build portable Python runtime
         run: scripts/build_portable_python.sh
@@ -80,7 +99,6 @@ jobs:
         run: mac/dist/LangCheck.app/Contents/MacOS/LangCheck --selftest
 
       - name: Notarize app bundle
-        if: ${{ env.HAS_APPLE_NOTARY == 'true' }}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -101,7 +119,6 @@ jobs:
         run: scripts/create_dmg.sh
 
       - name: Sign DMG
-        if: ${{ env.HAS_DEVELOPER_ID_APPLICATION == 'true' }}
         env:
           SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
         run: |
@@ -109,7 +126,6 @@ jobs:
           codesign --verify --verbose=2 mac/dist/*.dmg
 
       - name: Notarize DMG
-        if: ${{ env.HAS_APPLE_NOTARY == 'true' }}
         env:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
@@ -126,7 +142,6 @@ jobs:
 
       - name: Sign update for Sparkle
         id: sparkle
-        if: ${{ env.HAS_SPARKLE_PRIVATE_ED_KEY == 'true' }}
         env:
           SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
         shell: bash
@@ -145,6 +160,15 @@ jobs:
             exit 1
           fi
           echo "signature=$SIG" >> "$GITHUB_OUTPUT"
+
+      - name: Verify Gatekeeper acceptance
+        shell: bash
+        run: |
+          DMG="$(ls mac/dist/LangCheck-*.dmg | head -n 1)"
+          spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG"
+          spctl --assess --type execute --verbose=4 mac/dist/LangCheck.app
+          xcrun stapler validate "$DMG"
+          xcrun stapler validate mac/dist/LangCheck.app
 
       - name: Write appcast
         shell: bash
