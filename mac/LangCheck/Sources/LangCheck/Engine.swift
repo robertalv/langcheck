@@ -58,6 +58,9 @@ enum PythonEngine {
         if clean { args += ["--clean"] }
         proc.arguments = args
         proc.currentDirectoryURL = dir   // so `import analyzer` resolves
+        var environment = ProcessInfo.processInfo.environment
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        proc.environment = environment
 
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()
