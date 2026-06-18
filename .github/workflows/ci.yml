@@ -17,6 +17,10 @@ jobs:
     runs-on: macos-15
     env:
       GITHUB_TOKEN: ${{ github.token }}
+      HAS_APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE_BASE64 != '' }}
+      HAS_APPLE_NOTARY: ${{ secrets.APPLE_ID != '' && secrets.APPLE_APP_SPECIFIC_PASSWORD != '' && secrets.APPLE_TEAM_ID != '' }}
+      HAS_DEVELOPER_ID_APPLICATION: ${{ secrets.DEVELOPER_ID_APPLICATION != '' }}
+      HAS_SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY != '' }}
 
     steps:
       - name: Checkout
@@ -54,20 +58,94 @@ jobs:
       - name: Build portable Python runtime
         run: scripts/build_portable_python.sh
 
+      - name: Import Developer ID certificate
+        if: ${{ env.HAS_APPLE_CERTIFICATE == 'true' }}
+        env:
+          APPLE_CERTIFICATE_BASE64: ${{ secrets.APPLE_CERTIFICATE_BASE64 }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          KEYCHAIN_PASSWORD: ${{ secrets.KEYCHAIN_PASSWORD }}
+        shell: bash
+        run: |
+          CERTIFICATE_PATH="$RUNNER_TEMP/developer-id.p12"
+          KEYCHAIN_PATH="$RUNNER_TEMP/app-signing.keychain-db"
+          echo "$APPLE_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$APPLE_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychain -d user -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
       - name: Package app bundle
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
           APP_BUILD: ${{ steps.version.outputs.build }}
           PYENGINE_PYTHON_DIR: ${{ github.workspace }}/mac/build/python-runtime
+          SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
         run: mac/package_app.sh
 
       - name: Verify packaged app
         run: mac/dist/LangCheck.app/Contents/MacOS/LangCheck --selftest
 
+      - name: Notarize app bundle
+        if: ${{ env.HAS_APPLE_NOTARY == 'true' && env.HAS_DEVELOPER_ID_APPLICATION == 'true' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          ditto -c -k --keepParent mac/dist/LangCheck.app "$RUNNER_TEMP/LangCheck.zip"
+          xcrun notarytool submit "$RUNNER_TEMP/LangCheck.zip" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple mac/dist/LangCheck.app
+
       - name: Create DMG
         env:
           APP_VERSION: ${{ steps.version.outputs.version }}
         run: scripts/create_dmg.sh
+
+      - name: Sign DMG
+        if: ${{ env.HAS_DEVELOPER_ID_APPLICATION == 'true' }}
+        env:
+          SIGN_IDENTITY: ${{ secrets.DEVELOPER_ID_APPLICATION }}
+        run: |
+          codesign --force --timestamp --sign "$SIGN_IDENTITY" mac/dist/*.dmg
+          codesign --verify --verbose=2 mac/dist/*.dmg
+
+      - name: Notarize DMG
+        if: ${{ env.HAS_APPLE_NOTARY == 'true' && env.HAS_DEVELOPER_ID_APPLICATION == 'true' }}
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        shell: bash
+        run: |
+          DMG="$(ls mac/dist/LangCheck-*.dmg | head -n 1)"
+          xcrun notarytool submit "$DMG" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+          xcrun stapler staple "$DMG"
+
+      - name: Assess installability
+        id: gatekeeper
+        shell: bash
+        run: |
+          DMG="$(ls mac/dist/LangCheck-*.dmg | head -n 1)"
+          if spctl --assess --type open --context context:primary-signature --verbose=4 "$DMG" \
+            && spctl --assess --type execute --verbose=4 mac/dist/LangCheck.app \
+            && xcrun stapler validate "$DMG" \
+            && xcrun stapler validate mac/dist/LangCheck.app; then
+            echo "installable=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::warning::DMG is not signed/notarized for normal macOS installation. Uploading CI artifact only; skipping GitHub prerelease."
+            echo "installable=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Write CI appcast
         run: |
@@ -93,7 +171,7 @@ jobs:
             mac/dist/appcast.xml
 
       - name: Publish CI prerelease
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && steps.gatekeeper.outputs.installable == 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ steps.version.outputs.tag }}

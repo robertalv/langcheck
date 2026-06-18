@@ -101,11 +101,11 @@ Sparkle.
 `.github/workflows/ci.yml` runs on pushes, pull requests, and manual dispatch.
 It validates the scripts, builds the Swift app, builds a portable Python
 runtime, packages `LangCheck.app`, runs `--selftest`, creates a DMG, and uploads
-the DMG as a GitHub Actions artifact. CI artifacts are unsigned test builds and
-are not intended for public installation. On pushes to `main`/`master` and
-manual CI runs, CI also publishes a GitHub prerelease under a `ci-<run_number>`
-tag with `make_latest: false`, so it is visible in Releases but does not replace
-the public Latest release or app update feed.
+the DMG as a GitHub Actions artifact. CI artifacts are test builds and are not
+the public install channel. On pushes to `main`/`master` and manual CI runs, CI
+assesses the DMG with Gatekeeper. It publishes a GitHub prerelease under a
+`ci-<run_number>` tag only if the build is signed, notarized, and stapled; if
+not, it keeps the DMG as an Actions artifact only.
 
 Public releases are produced only by `.github/workflows/macos-release.yml`.
 That workflow requires Developer ID signing, Apple notarization, and Sparkle
