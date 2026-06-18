@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   macos:
@@ -29,9 +29,11 @@ jobs:
         id: version
         shell: bash
         run: |
-          VERSION="0.0.${GITHUB_RUN_NUMBER}-ci"
+          VERSION="1.0.${GITHUB_RUN_NUMBER}"
+          TAG="ci-${GITHUB_RUN_NUMBER}"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build=${GITHUB_RUN_NUMBER}" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
       - name: Validate scripts
         run: |
@@ -66,9 +68,10 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           BUILD="${{ steps.version.outputs.build }}"
+          TAG="${{ steps.version.outputs.tag }}"
           DMG="$(ls mac/dist/LangCheck-*.dmg | head -n 1)"
           DMG_NAME="$(basename "$DMG")"
-          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v$VERSION/$DMG_NAME"
+          DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/$TAG/$DMG_NAME"
           scripts/write_appcast.py \
             --version "$VERSION" \
             --build "$BUILD" \
@@ -81,5 +84,22 @@ jobs:
         with:
           name: LangCheck-${{ steps.version.outputs.version }}-macOS
           path: |
+            mac/dist/LangCheck-*.dmg
+            mac/dist/appcast.xml
+
+      - name: Publish CI prerelease
+        if: github.event_name != 'pull_request'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: LangCheck CI Build ${{ steps.version.outputs.version }}
+          prerelease: true
+          make_latest: false
+          body: |
+            Automated CI build from `${{ github.sha }}`.
+
+            This is a prerelease build for testing. It is not the public signed/notarized release channel.
+          files: |
             mac/dist/LangCheck-*.dmg
             mac/dist/appcast.xml
