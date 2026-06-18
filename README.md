@@ -96,6 +96,14 @@ and `mac/package_app.sh` bundles that runtime when `PYENGINE_PYTHON_DIR` is set.
 LangCheck can be shipped as a GitHub Release DMG and updated in-app through
 Sparkle.
 
+### CI builds
+
+`.github/workflows/ci.yml` runs on pushes, pull requests, and manual dispatch.
+It validates the scripts, builds the Swift app, builds a portable Python
+runtime, packages `LangCheck.app`, runs `--selftest`, creates a DMG, and uploads
+the DMG as a GitHub Actions artifact. This is for validation and sharing test
+builds from CI.
+
 ### One-time release setup
 
 1. Create Sparkle EdDSA keys:

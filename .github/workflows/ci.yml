@@ -1,0 +1,70 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  macos:
+    name: Build and Package macOS App
+    runs-on: macos-14
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate scripts
+        run: |
+          bash -n mac/package_app.sh
+          bash -n scripts/build_portable_python.sh
+          bash -n scripts/create_dmg.sh
+          python3 -m py_compile scripts/write_appcast.py
+
+      - name: Build Swift package
+        working-directory: mac/LangCheck
+        run: swift build
+
+      - name: Build portable Python runtime
+        run: scripts/build_portable_python.sh
+
+      - name: Package app bundle
+        env:
+          APP_VERSION: 0.0.0-ci
+          APP_BUILD: ${{ github.run_number }}
+          LANGCHECK_UPDATE_FEED_URL: https://github.com/${{ github.repository }}/releases/latest/download/appcast.xml
+          PYENGINE_PYTHON_DIR: ${{ github.workspace }}/mac/build/python-runtime
+        run: mac/package_app.sh
+
+      - name: Verify packaged app
+        run: mac/dist/LangCheck.app/Contents/MacOS/LangCheck --selftest
+
+      - name: Create DMG
+        env:
+          APP_VERSION: 0.0.0-ci
+        run: scripts/create_dmg.sh
+
+      - name: Write CI appcast
+        run: |
+          DMG="$(ls mac/dist/LangCheck-*.dmg | head -n 1)"
+          DMG_NAME="$(basename "$DMG")"
+          scripts/write_appcast.py \
+            --version "0.0.0-ci" \
+            --build "${{ github.run_number }}" \
+            --dmg "$DMG" \
+            --download-url "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts" \
+            --output mac/dist/appcast.xml
+
+      - name: Upload CI DMG artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: LangCheck-ci-macOS
+          path: |
+            mac/dist/LangCheck-*.dmg
+            mac/dist/appcast.xml
