@@ -101,8 +101,10 @@ Sparkle.
 `.github/workflows/ci.yml` runs on pushes, pull requests, and manual dispatch.
 It validates the scripts, builds the Swift app, builds a portable Python
 runtime, packages `LangCheck.app`, runs `--selftest`, creates a DMG, and uploads
-the DMG as a GitHub Actions artifact. This is for validation and sharing test
-builds from CI.
+the DMG as a GitHub Actions artifact. On pushes to `main`/`master` and manual
+CI runs, it also publishes a numbered GitHub Release like `v1.0.<run_number>`
+with the DMG and `appcast.xml`. Pull requests stay validation-only and do not
+publish releases.
 
 ### One-time release setup
 
