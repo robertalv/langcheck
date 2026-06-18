@@ -108,9 +108,12 @@ assesses the DMG with Gatekeeper. It publishes a GitHub prerelease under a
 not, it keeps the DMG as an Actions artifact only.
 
 Public releases are produced only by `.github/workflows/macos-release.yml`.
-That workflow requires Developer ID signing, Apple notarization, and Sparkle
-update signing secrets before it will publish a GitHub Release. This prevents
-shipping DMGs that macOS reports as damaged or unsafe.
+That workflow runs on pushes to `main`/`master`, version tags, and manual
+dispatch. For normal pushes, it creates a version like `1.0.<run_number>`,
+publishes tag `v1.0.<run_number>`, and marks that GitHub Release as **Latest**.
+It requires Developer ID signing, Apple notarization, and Sparkle update signing
+secrets before it will publish. This prevents shipping DMGs that macOS reports
+as damaged or unsafe.
 
 ### One-time release setup
 
@@ -142,7 +145,10 @@ release workflow will refuse to publish a public release.
 
 ### Publish a release
 
-Tag and push a version:
+For an automatic latest release, push to `main` or `master` after the signing
+secrets are configured.
+
+For a specific semantic version, tag and push:
 
 ```bash
 git tag v1.0.1
