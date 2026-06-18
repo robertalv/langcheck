@@ -109,9 +109,28 @@ fi
 
 find "$APP/Contents/Resources/pyengine" -name '__pycache__' -type d -prune -exec rm -rf {} + 2>/dev/null || true
 
+sign_macho_files() {
+  local root="$1"
+  find "$root" -type f -print0 |
+    while IFS= read -r -d '' file; do
+      if file "$file" | grep -q 'Mach-O'; then
+        codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$file"
+      fi
+    done
+}
+
 if [[ -n "$SIGN_IDENTITY" ]]; then
   echo "▸ Developer ID code signing…"
-  codesign --force --deep --options runtime --timestamp --entitlements "$ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$APP"
+  if [[ -d "$APP/Contents/Resources/pyengine" ]]; then
+    echo "  signing bundled Python binaries…"
+    sign_macho_files "$APP/Contents/Resources/pyengine"
+  fi
+  if [[ -d "$APP/Contents/Frameworks/Sparkle.framework" ]]; then
+    echo "  signing Sparkle.framework…"
+    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP/Contents/Frameworks/Sparkle.framework"
+  fi
+  echo "  signing LangCheck.app…"
+  codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$APP"
   codesign --verify --deep --strict --verbose=2 "$APP"
 else
   echo "▸ Ad-hoc code signing…"

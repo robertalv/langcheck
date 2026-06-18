@@ -124,11 +124,25 @@ jobs:
         shell: bash
         run: |
           ditto -c -k --keepParent mac/dist/LangCheck.app "$RUNNER_TEMP/LangCheck.zip"
-          xcrun notarytool submit "$RUNNER_TEMP/LangCheck.zip" \
+          set +e
+          SUBMIT_OUTPUT="$(xcrun notarytool submit "$RUNNER_TEMP/LangCheck.zip" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait
+            --wait 2>&1)"
+          STATUS=$?
+          set -e
+          echo "$SUBMIT_OUTPUT"
+          SUBMISSION_ID="$(echo "$SUBMIT_OUTPUT" | sed -n 's/^[[:space:]]*id: //p' | tail -n 1)"
+          if [[ "$STATUS" -ne 0 || "$SUBMIT_OUTPUT" == *"status: Invalid"* ]]; then
+            if [[ -n "$SUBMISSION_ID" ]]; then
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --apple-id "$APPLE_ID" \
+                --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" || true
+            fi
+            exit 1
+          fi
           xcrun stapler staple mac/dist/LangCheck.app
 
       - name: Create DMG
@@ -151,11 +165,25 @@ jobs:
         shell: bash
         run: |
           DMG="$(ls mac/dist/LangCheck-*.dmg | head -n 1)"
-          xcrun notarytool submit "$DMG" \
+          set +e
+          SUBMIT_OUTPUT="$(xcrun notarytool submit "$DMG" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_APP_SPECIFIC_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
-            --wait
+            --wait 2>&1)"
+          STATUS=$?
+          set -e
+          echo "$SUBMIT_OUTPUT"
+          SUBMISSION_ID="$(echo "$SUBMIT_OUTPUT" | sed -n 's/^[[:space:]]*id: //p' | tail -n 1)"
+          if [[ "$STATUS" -ne 0 || "$SUBMIT_OUTPUT" == *"status: Invalid"* ]]; then
+            if [[ -n "$SUBMISSION_ID" ]]; then
+              xcrun notarytool log "$SUBMISSION_ID" \
+                --apple-id "$APPLE_ID" \
+                --password "$APPLE_APP_SPECIFIC_PASSWORD" \
+                --team-id "$APPLE_TEAM_ID" || true
+            fi
+            exit 1
+          fi
           xcrun stapler staple "$DMG"
 
       - name: Sign update for Sparkle
