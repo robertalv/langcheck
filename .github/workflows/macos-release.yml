@@ -114,7 +114,14 @@ jobs:
         run: mac/package_app.sh
 
       - name: Verify app bundle
-        run: mac/dist/LangCheck.app/Contents/MacOS/LangCheck --selftest
+        run: |
+          mac/dist/LangCheck.app/Contents/MacOS/LangCheck --selftest
+          codesign --verify --deep --strict --verbose=4 mac/dist/LangCheck.app
+          codesign --display --verbose=4 mac/dist/LangCheck.app/Contents/MacOS/LangCheck
+          codesign --display --verbose=4 mac/dist/LangCheck.app/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate
+          codesign --display --verbose=4 mac/dist/LangCheck.app/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app
+          codesign --display --verbose=4 mac/dist/LangCheck.app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc
+          codesign --display --verbose=4 mac/dist/LangCheck.app/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc
 
       - name: Notarize app bundle
         env:

@@ -126,12 +126,19 @@ if [[ -n "$SIGN_IDENTITY" ]]; then
     sign_macho_files "$APP/Contents/Resources/pyengine"
   fi
   if [[ -d "$APP/Contents/Frameworks/Sparkle.framework" ]]; then
-    echo "  signing Sparkle.framework…"
-    codesign --force --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP/Contents/Frameworks/Sparkle.framework"
+    echo "  signing Sparkle.framework and nested helpers…"
+    codesign --force --deep --options runtime --timestamp --sign "$SIGN_IDENTITY" "$APP/Contents/Frameworks/Sparkle.framework"
   fi
   echo "  signing LangCheck.app…"
   codesign --force --options runtime --timestamp --entitlements "$ENTITLEMENTS" --sign "$SIGN_IDENTITY" "$APP"
   codesign --verify --deep --strict --verbose=2 "$APP"
+  codesign --display --verbose=4 "$APP/Contents/MacOS/LangCheck"
+  if [[ -d "$APP/Contents/Frameworks/Sparkle.framework" ]]; then
+    codesign --display --verbose=4 "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/Autoupdate"
+    codesign --display --verbose=4 "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/Updater.app"
+    codesign --display --verbose=4 "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Downloader.xpc"
+    codesign --display --verbose=4 "$APP/Contents/Frameworks/Sparkle.framework/Versions/B/XPCServices/Installer.xpc"
+  fi
 else
   echo "▸ Ad-hoc code signing…"
   codesign --force --deep --sign - "$APP" 2>/dev/null && echo "  signed (ad-hoc)" || echo "  (signing skipped — app still runs locally)"
